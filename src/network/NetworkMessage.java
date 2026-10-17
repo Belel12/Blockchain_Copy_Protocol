@@ -9,7 +9,29 @@ public class NetworkMessage implements Serializable{
     public Object payload;
 
     public NetworkMessage(MessageType type, Object payload){
-        this.type = type;
-        this.payload = payload;
+        setType(type);
+        setPayload(payload);
     }
+
+	public static long getSerialversionuid() {
+		return serialVersionUID;
+	}
+
+	public MessageType getType() {
+		return type;
+	}
+
+	private void setType(MessageType type) {
+		this.type = type;
+	}
+
+	public Object getPayload() {
+		return payload;
+	}
+
+	private void setPayload(Object payload) {
+		this.payload = payload;
+	}
+
+
 }
