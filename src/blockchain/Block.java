@@ -12,11 +12,12 @@ public class Block implements Serializable{
     private long timestamp;
     private int nonce;
 
-    public Block(String data, String previousHash){
+    public Block(String data, String previousHash, int difficulty){
         this.data = data;
         this.previousHash = previousHash;
         this.timestamp = new Date().getTime();
         this.hash = calculateHash();
+        mineBlock(difficulty);
     }
 
     public String calculateHash(){
