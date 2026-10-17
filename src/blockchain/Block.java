@@ -21,7 +21,10 @@ public class Block implements Serializable{
 
     public String calculateHash(){
         return StringUtil.applySHA256(
-            this.previousHash + Long.toString(timestamp) + data
+            this.previousHash
+            + Long.toString(this.timestamp)
+            + Integer.toString(this.nonce)
+            + this.data
         );
     }
 
