@@ -1,6 +1,7 @@
 package blockchain;
-import stringutils.StringUtil;
 import java.util.Date;
+
+import utils.StringUtil;
 
 public class Block {
     public String hash;

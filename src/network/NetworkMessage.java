@@ -32,6 +32,4 @@ public class NetworkMessage implements Serializable{
 	private void setPayload(Object payload) {
 		this.payload = payload;
 	}
-
-
 }
