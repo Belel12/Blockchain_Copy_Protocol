@@ -1,9 +1,11 @@
 package blockchain;
 import java.util.Date;
-
+import java.io.Serializable;
 import utils.StringUtil;
 
-public class Block {
+public class Block implements Serializable{
+    public static final long serialVersionUID = 1L;
+
     public String hash;
     public String previousHash;
     private String data;
