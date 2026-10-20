@@ -68,8 +68,12 @@ public class BlockChain {
         setBlockchain(newBlockchain);
     }
 
-    public void addBlock(Block newBlock){
-        getBlockchain().add(newBlock);
+    public void addBlock(String data, int difficulty){
+        getBlockchain().add(new Block(
+            data,
+            getBlockchain().getLast().getHash(),
+            difficulty
+        ));
         validate();
     }
 }
