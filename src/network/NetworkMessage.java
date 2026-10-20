@@ -5,8 +5,8 @@ import java.io.Serializable;
 public class NetworkMessage implements Serializable{
     public static final long serialVersionUID = 1L;
 
-    public MessageType type;
-    public Object payload;
+    private MessageType type;
+    private Object payload;
 
     public NetworkMessage(MessageType type, Object payload){
         setType(type);

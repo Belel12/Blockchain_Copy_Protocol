@@ -45,13 +45,13 @@ public class BlockChain {
             currentBlock = blockchain.get(i);
             previousBlock = blockchain.get(i-1);
             //compare registered hash and calculated hash:
-            if(!currentBlock.hash.equals(currentBlock.calculateHash()) ){
+            if(!currentBlock.getHash().equals(currentBlock.calculateHash()) ){
                 System.out.println("Current Hashes not equal");
                 setValid(false);
                 return;
             }
             //compare previous hash and registered previous hash
-            if(!previousBlock.hash.equals(currentBlock.previousHash) ) {
+            if(!previousBlock.getHash().equals(currentBlock.getPreviousHash())) {
                 System.out.println("Previous Hashes not equal");
                 setValid(false);
                 return;
