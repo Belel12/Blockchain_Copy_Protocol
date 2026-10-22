@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class NetworkMessage implements Serializable{
     public static final long serialVersionUID = 1L;
+    public static final String currentProtocolVersion = "V1.0";
 
     private MessageType type;
     private Object payload;
