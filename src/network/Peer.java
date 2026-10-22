@@ -35,14 +35,15 @@ public class Peer{
 		this.port = port;
 	}
 
-    public String serialize(){
+
+    public String toString(){
         return this.getIp() + ":" + this.getPort().toString();
     }
 
     public static List<String> serializePeerList(List<Peer> peers){
         List<String> serializedList = new ArrayList<String>();
         for(Peer peer : peers){
-            serializedList.add(peer.serialize());
+            serializedList.add(peer.toString());
         }
         return serializedList;
     }
