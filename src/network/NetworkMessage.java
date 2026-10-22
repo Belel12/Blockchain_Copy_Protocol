@@ -9,7 +9,7 @@ public class NetworkMessage implements Serializable{
     private MessageType type;
     private Object payload;
 
-    public NetworkMessage(MessageType type, Object payload){
+    protected NetworkMessage(MessageType type, Object payload){
         setType(type);
         setPayload(payload);
     }
