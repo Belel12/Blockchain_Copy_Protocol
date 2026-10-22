@@ -64,8 +64,8 @@ public class BlockChain {
         return getBlockchain();
     }
 
-    public void update(List<Block> newBlockchain){
-        setBlockchain(newBlockchain);
+    public void update(BlockChain newBlockchain){
+        setBlockchain(newBlockchain.getBlockchain());
     }
 
     public void addBlock(String data, int difficulty){
