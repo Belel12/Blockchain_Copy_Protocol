@@ -6,5 +6,7 @@ public enum MessageType{
     GET_BLOCKCHAIN,
     BLOCKCHAIN_COPY,
     REJECT,
-    ACK
+    ACK,
+    REQUEST_CONNECTION_END,
+    END_CONNECTION
 }
