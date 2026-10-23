@@ -2,6 +2,8 @@ package network;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
+
 public class Peer{
     private String ip;
     private Integer port;
@@ -40,6 +42,18 @@ public class Peer{
         return this.getIp() + ":" + this.getPort().toString();
     }
 
+    @Override
+    public boolean equals(Object obj){
+        if (this == obj) return true;
+        if (!(obj instanceof Peer )) return false;
+        Peer castedObj = (Peer) obj;
+        return this.ip.equals(castedObj.getIp()) && this.port.equals(castedObj.getPort());
+    }
+
+    @Override
+    public int hashCode(){
+        return Objects.hash(this.ip, this.port);
+    }
     public static List<String> serializePeerList(List<Peer> peers){
         List<String> serializedList = new ArrayList<String>();
         for(Peer peer : peers){
