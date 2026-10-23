@@ -67,6 +67,13 @@ public class ClientHandler extends Thread{
                             Logger.info("Sent REJECT("+reason+") to " + clientPeer);
                         }
                     }
+                    case REQUEST_CONNECTION_END -> {
+                        Logger.info("Received REQUEST_CONNECTION_END from " + clientPeer);
+                        objWriter.writeObject(MessageFactory.END_CONNECTION());
+                        Logger.info("Sent END_CONNECTION to " + clientPeer);
+                        Logger.info("Ended connection with " + clientPeer);
+                        break;
+                    }
                     default -> {
                         Logger.info("Received invalid message type from client: " +  message.getType());
                         objWriter.writeObject(MessageFactory.REJECT("Invalid message type"));
@@ -75,9 +82,9 @@ public class ClientHandler extends Thread{
                 }
             }
 
-        }catch(EOFException eof){
+        } catch(EOFException eof) {
             Logger.error(clientPeer + " ended connection abruptly while client handler tried to read object. Handling was cancelled normally.");
-        } catch(Exception e){
+        } catch(Exception e) {
             Logger.error("An unexpected error happenned during client handle in " + clientPeer + " \n" + e);
         }
     }
