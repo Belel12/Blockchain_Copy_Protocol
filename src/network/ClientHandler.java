@@ -47,6 +47,10 @@ public class ClientHandler extends Thread{
                         Logger.info("Received GET_PEERS from " + clientPeer);
                         objWriter.writeObject(MessageFactory.PEERS_LIST(Peer.serializePeerList(peersList)));
                         Logger.info("Sent PEER_LIST to " + clientPeer);
+                        if(!peersList.contains(clientPeer)){
+                            peersList.add(clientPeer);
+                            Logger.info("Added " + clientPeer + " to this node's Peers List");
+                        }
                     }
                     case GET_BLOCKCHAIN -> {
                         Logger.info("Received GET_BLOCKCHAIN from " + clientPeer);
