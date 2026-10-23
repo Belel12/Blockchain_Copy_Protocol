@@ -64,7 +64,7 @@ public class BlockChain {
         return getBlockchain();
     }
 
-    public void update(BlockChain newBlockchain){
+    public synchronized void update(BlockChain newBlockchain){
         setBlockchain(newBlockchain.getBlockchain());
     }
 
