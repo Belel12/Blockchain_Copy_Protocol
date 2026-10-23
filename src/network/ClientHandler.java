@@ -95,7 +95,7 @@ public class ClientHandler extends Thread{
     }
 
     @Override
-    public void start(){
-
+    public void run(){
+        handleClient();
     }
 }
