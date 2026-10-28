@@ -8,6 +8,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.Thread;
 import java.util.List;
+import config.Config;
 
 public class ClientHandler extends Thread{
 
@@ -93,14 +94,14 @@ public class ClientHandler extends Thread{
         }
     }
 
-    //validates both protocol of client and his ID (just checks if its not null)
+    //validates both protocol of client and his ID (just checks if its not null or empty)
     private boolean validateClientNode(String clientNodeId){
         if(clientNodeId == null)
             return false;
         String[] values = clientNodeId.split("-");
         String clientProtocolVersion = values[0];
         String clientID = values[1];
-        if(!clientProtocolVersion.equals(NetworkMessage.currentProtocolVersion) || clientID == null)
+        if(!clientProtocolVersion.equals(Config.currentProtocolVersion) || clientID == null || clientID.isEmpty())
             return false;
         return true;
     }

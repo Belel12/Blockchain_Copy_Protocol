@@ -43,4 +43,3 @@ public class Client {
         socket.close();
     }
 }
-```
