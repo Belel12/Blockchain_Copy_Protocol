@@ -4,8 +4,10 @@ import blockchain.*;
 import utils.Logger;
 import java.net.Socket;
 import java.io.EOFException;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.lang.Thread;
 import java.util.List;
 import config.Config;
@@ -25,8 +27,8 @@ public class ClientHandler extends Thread{
         Peer clientPeer = new Peer(client.getInetAddress().getHostName(), client.getPort());
         try(
             this.client;
+            ObjectOutputStream objWriter = ObjOutStreamWithFlush(this.client.getOutputStream());
             ObjectInputStream objReader = new ObjectInputStream(this.client.getInputStream());
-            ObjectOutputStream objWriter = new ObjectOutputStream(this.client.getOutputStream())
         ){
             NetworkMessage message;
             //main loop
@@ -109,5 +111,11 @@ public class ClientHandler extends Thread{
     @Override
     public void run(){
         handleClient();
+    }
+
+    private ObjectOutputStream ObjOutStreamWithFlush(OutputStream outStream) throws IOException{
+        ObjectOutputStream objout = new ObjectOutputStream(outStream);
+        objout.flush();
+        return objout;
     }
 }
