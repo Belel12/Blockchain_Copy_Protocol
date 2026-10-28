@@ -3,32 +3,38 @@ package network;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.List;
 
 import blockchain.BlockChain;
+
+import utils.Logger;
 
 public class Server {
 
     private final int port;
     private final BlockChain blockChain;
     private final List<Peer> peersList;
-
-    public Server(int port, BlockChain blockChain, List<Peer> peersList) {
+    private boolean running;
+    private final ServerSocket serverSocket;
+    public Server(int port, BlockChain blockChain, List<Peer> peersList) throws IOException{
         this.port = port;
         this.blockChain = blockChain;
         this.peersList = peersList;
+        this.running = true;
+        this.serverSocket = new ServerSocket(this.port);
     }
 
     public void start() {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
+        try (serverSocket) {
 
-            System.out.println("Servidor iniciado na porta " + port);
+            Logger.info("Servidor iniciado na porta " + port);
 
-            while (true) {
+            while (running) {
                 // Espera um cliente se conectar.
                 Socket clientSocket = serverSocket.accept();
 
-                System.out.println("Novo cliente conectado!");
+                Logger.info("Novo cliente conectado!");
 
                 // Cria um atendente para essa conexão.
                 ClientHandler handler = new ClientHandler(
@@ -41,8 +47,25 @@ public class Server {
                 handler.start();
             }
 
+        } catch (SocketException e){
+            if (!running){
+                Logger.info("Server interrupted");
+                return;
+            }
+            e.printStackTrace();
         } catch (IOException e) {
-            System.err.println("Erro no servidor: " + e.getMessage());
+            Logger.error("Erro no servidor: " + e.getMessage());
+        }
+    }
+
+    public void interrupt(){
+        try {
+            if(!serverSocket.isClosed()){
+                serverSocket.close();
+            }
+        } catch (IOException e){
+            Logger.error("Error while closing server");
+            e.printStackTrace();
         }
     }
 }
