@@ -82,5 +82,13 @@ public class Block implements Serializable{
 		this.nonce = nonce;
 	}
 
-
+	public String toString(){
+	    return "{\n" +
+					"\tHASH: " + getHash() + "\n" +
+					"\tPREVIOUS HASH:" + getPreviousHash() + "\n" +
+					"\tTIMESTAMP:" + getTimestamp() + "\n" +
+					"\tNONCE:" + getNonce() + "\n" +
+					"\tDATA:" + getData() + "\n" +
+				"}";
+	}
 }

@@ -76,4 +76,12 @@ public class BlockChain {
         ));
         validate();
     }
+
+    public String toString(){
+        StringBuffer str = new StringBuffer();
+        for (Block block : getBlockchain()){
+            str.append(block.toString());
+        }
+        return new String(str);
+    }
 }
