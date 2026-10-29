@@ -62,6 +62,7 @@ public class ClientHandler extends Thread{
                     }
                     case BLOCKCHAIN_COPY -> {
                         Logger.info("Received BLOCKCHAIN_COPY from " + clientPeer);
+                        @SuppressWarnings("unchecked")
                         BlockChain clientBlockChain = new BlockChain((List<Block>) message.getPayload());
                         if(clientBlockChain.isValid() && clientBlockChain.size() > this.blockChain.size()){
                             this.blockChain.update(clientBlockChain);
