@@ -5,16 +5,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.List;
+import java.lang.Runnable;
 
 import blockchain.BlockChain;
 
 import utils.Logger;
 
-public class Server {
+public class Server implements Runnable {
 
     private final int port;
     private final BlockChain blockChain;
     private final List<Peer> peersList;
+
     private boolean running;
     private final ServerSocket serverSocket;
     public Server(int port, BlockChain blockChain, List<Peer> peersList) throws IOException{
@@ -25,7 +27,7 @@ public class Server {
         this.serverSocket = new ServerSocket(this.port);
     }
 
-    public void start() {
+    public void run(){
         try (serverSocket) {
 
             Logger.info("Servidor iniciado na porta " + port);
@@ -39,8 +41,8 @@ public class Server {
                 // Cria um atendente para essa conexão.
                 ClientHandler handler = new ClientHandler(
                     clientSocket,
-                    blockChain,
-                    peersList
+                    this.blockChain,
+                    this.peersList
                 );
 
                 // Inicia o atendimento em uma thread separada.
@@ -53,19 +55,32 @@ public class Server {
                 return;
             }
             e.printStackTrace();
-        } catch (IOException e) {
+        } catch(IOException e){
             Logger.error("Erro no servidor: " + e.getMessage());
+        } finally {
+            running = false;
+            Logger.info("Server stopped");
         }
     }
 
-    public void interrupt(){
-        try {
-            if(!serverSocket.isClosed()){
-                serverSocket.close();
-            }
-        } catch (IOException e){
-            Logger.error("Error while closing server");
-            e.printStackTrace();
-        }
+    public void interrupt() throws IOException{
+        running = false;
+        serverSocket.close();
+    }
+
+    public BlockChain getBlockChain(){
+        return this.blockChain;
+    }
+
+    public List<Peer> getPeersList(){
+        return this.peersList;
+    }
+
+    public int getPort(){
+        return this.port;
+    }
+
+    public boolean isRunning(){
+        return this.running;
     }
 }
