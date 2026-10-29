@@ -2,8 +2,11 @@ package utils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import apps.BaseApp;
+
 public class Logger{
 
+    public static boolean userInputLoopActive = false;
     public static final String RESET    = "\u001B[0m";
     public static final String RED = "\u001B[31m";
     public static final String GREEN    = "\u001B[32m";
@@ -14,11 +17,23 @@ public class Logger{
         return new SimpleDateFormat("HH:mm:ss").format(new Date());
     }
     public static void error(String msg){
-        System.out.println("| " + RED + "ERROR" + RESET + " | " + getTimeStamp() + " | " + msg);
+        if (!userInputLoopActive){
+            System.out.println("| " + RED + "ERROR" + RESET + " | " + getTimeStamp() + " | " + msg);
+        }
+        else{
+            System.out.println("\r| " + RED + "ERROR" + RESET + " | " + getTimeStamp() + " | " + msg);
+            System.out.print(BaseApp.getUserInputRequest());
+        }
     }
 
     public static void info(String msg){
-        System.out.println("| " + GREEN + "INFO" + RESET + "  | " + getTimeStamp() + " | " + msg);
+        if (!userInputLoopActive){
+            System.out.println("| " + GREEN + "INFO" + RESET + "  | " + getTimeStamp() + " | " + msg);
+        }
+        else{
+            System.out.println("\r| " + GREEN + "INFO" + RESET + "  | " + getTimeStamp() + " | " + msg);
+            System.out.print(BaseApp.getUserInputRequest());
+        }
     }
 
 
