@@ -39,6 +39,8 @@ public abstract class BaseApp {
 
     protected void abortNodeExecution(){
         try{
+            Logger.userInputLoopActive = false;
+            //interrupts flow manager
             serverInstance.interrupt();
         } catch(IOException e) {
             Logger.error("Error while aborting node execution");
@@ -48,6 +50,8 @@ public abstract class BaseApp {
 
     public void startUserInputLoop(){
         try(Scanner scanner = new Scanner(System.in)){
+            Logger.userInputLoopActive = true;
+            System.out.print(getUserInputRequest());
             while(scanner.hasNextLine()){
                 String opt = scanner.nextLine().trim();
                 switch (opt){
@@ -68,6 +72,7 @@ public abstract class BaseApp {
                         System.out.println("Unknow option: " + opt);
                     }
                 }
+                System.out.print(getUserInputRequest());
             }
         }
     }
