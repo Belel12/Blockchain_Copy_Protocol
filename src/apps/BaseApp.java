@@ -114,6 +114,9 @@ public abstract class BaseApp {
 		return serverInstance.getPort();
 	}
 
+	public Server getServerInstance(){
+	    return this.serverInstance;
+	}
 	public static String getUserInputRequest() {
 		return userInputRequest;
 	}
