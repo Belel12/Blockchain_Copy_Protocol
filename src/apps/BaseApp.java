@@ -18,7 +18,7 @@ public abstract class BaseApp {
     private  Server     serverInstance;
 
     private static String userInputRequest = "Execute command (type h to see options) : ";
-    private static String options = "1 - Inspect this node's BlockChain\n2 - Inspect this node's known Peers\n 3 - Abort this node's execution";
+    private static String options = "1 - Inspect this node's BlockChain\n2 - Inspect this node's known Peers\n3 - Abort this node's execution";
 
     public BaseApp (
         String nodeId,
@@ -30,7 +30,11 @@ public abstract class BaseApp {
 
     //must be single print statemant since other threads can print in between
     public void printBlockChain(){
-        System.out.println("This node's blockchain: \n" + serverInstance.getBlockChain().toString());
+        BlockChain bc = serverInstance.getBlockChain();
+        if(bc.size() < 1)
+            System.out.println("No blocks added yet");
+        else
+            System.out.println("This node's blockchain: \n" + serverInstance.getBlockChain().toString());
     }
 
     public void printKnownPeers(){
@@ -82,7 +86,7 @@ public abstract class BaseApp {
         Logger.info("Starting server...");
         new Thread(serverInstance).start();
         try{
-            Thread.sleep(2 * 1000); // time to let the server start in the other thread
+            Thread.sleep(1 * 1000); // time to let the server start in the other thread
         } catch(InterruptedException e){e.printStackTrace();} //unlikely to happen
 
         return serverInstance.isRunning();
