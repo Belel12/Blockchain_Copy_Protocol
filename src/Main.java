@@ -1,4 +1,6 @@
 
+import java.io.IOException;
+
 import apps.GenesisApp;
 import apps.NodeApp;
 
@@ -10,7 +12,7 @@ public class Main{
     * Genesis node initialization
         - GENESIS [SERVER_PORT]
     * Regular node initialization
-        - NODE [NODE_NAME] [SERVER_PORT] [GENESIS_SERVER_IP:PORT ex.: 127.0.0.1:0202]
+        - NODE [NODE_NAME] [SERVER_PORT] [GENESIS_SERVER_PEER ex.: 127.0.0.1:0202]
     * Show this message
         - HELP
 
@@ -31,10 +33,8 @@ public class Main{
                 case "NODE" -> {
                     String nodeId = args[1].toUpperCase();
                     Integer serverPort = Integer.parseInt(args[2]);
-                    String[] values = args[3].split(":");
-                    String genesisServerIp = values[0];
-                    int genesisServerPort = Integer.parseInt(values[1]);
-                    startNodeApp(nodeId, serverPort, genesisServerIp, genesisServerPort);
+                    String genesisPeerString = args[3];
+                    startNodeApp(nodeId, serverPort, genesisPeerString);
                 }
             }
         } catch (ArrayIndexOutOfBoundsException e){
@@ -50,17 +50,19 @@ public class Main{
         try{
             GenesisApp app = new GenesisApp(port);
             app.startApp();
-        } catch(Exception e){
-            e.printStackTrace();
+        } catch(IOException e){
+            System.out.println("Error initializing app: " + e.getMessage());
         }
     }
 
-    static void startNodeApp(String nodeName, int serverPort, String genesisServerIp, int genesisServerPort){
+    static void startNodeApp(String nodeName, int serverPort, String genesisPeerString){
         try {
-            NodeApp app = new NodeApp(nodeName,serverPort, genesisServerIp, genesisServerPort);
+            NodeApp app = new NodeApp(nodeName,serverPort, genesisPeerString);
             app.startApp();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (ArrayIndexOutOfBoundsException e){
+            System.out.println("Invalid genesis Peer format");
+        } catch (IOException e) {
+            System.out.println("Error initializing app: " + e.getMessage());
         }
     }
 }

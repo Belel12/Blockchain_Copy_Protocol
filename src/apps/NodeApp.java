@@ -7,9 +7,9 @@ import utils.Logger;
 
 public class NodeApp extends BaseApp{
 
-    public NodeApp(String nodeId, int nodeServerPort, String genesisIp, int genesisPort) throws IOException{
+    public NodeApp(String nodeId, int nodeServerPort, String genesisPeerString) throws IOException, ArrayIndexOutOfBoundsException{
         super(nodeId, nodeServerPort);
-        Peer genesisPeer = new Peer(genesisIp,genesisPort);
+        Peer genesisPeer = new Peer(genesisPeerString);
         getServerInstance().getPeersList().add(genesisPeer);
     }
 
