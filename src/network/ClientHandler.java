@@ -39,16 +39,19 @@ public class ClientHandler extends Thread{
                         Logger.info("Received HELLO from " + clientPeer);
                         if(validateClientNode((String) message.getPayload())){
                             objWriter.writeObject(MessageFactory.ACK("Node approved"));
+                            objWriter.flush();
                             Logger.info("Sent ACK(Node approved) to " + clientPeer);
                         }
                         else{
                             objWriter.writeObject(MessageFactory.REJECT("Your protocol version is outdated or you provided a null Node id"));
+                            objWriter.flush();
                             Logger.info("Sent REJECT(Node protocol or id invalid) to " + clientPeer);
                         }
                     }
                     case GET_PEERS -> {
                         Logger.info("Received GET_PEERS from " + clientPeer);
                         objWriter.writeObject(MessageFactory.PEERS_LIST(Peer.serializePeerList(peersList)));
+                        objWriter.flush();
                         Logger.info("Sent PEER_LIST to " + clientPeer);
                         if(!peersList.contains(clientPeer)){
                             peersList.add(clientPeer);
@@ -58,6 +61,7 @@ public class ClientHandler extends Thread{
                     case GET_BLOCKCHAIN -> {
                         Logger.info("Received GET_BLOCKCHAIN from " + clientPeer);
                         objWriter.writeObject(MessageFactory.BLOCKCHAIN_COPY(blockChain.serialize()));
+                        objWriter.flush();
                         Logger.info("Sent BLOCKCHAIN_COPY to " + clientPeer);
                     }
                     case BLOCKCHAIN_COPY -> {
@@ -67,17 +71,20 @@ public class ClientHandler extends Thread{
                         if(clientBlockChain.isValid() && clientBlockChain.size() > this.blockChain.size()){
                             this.blockChain.update(clientBlockChain);
                             objWriter.writeObject(MessageFactory.ACK("Blockchain approved and updated"));
+                            objWriter.flush();
                             Logger.info("Sent ACK(Blockchain approved) to " + clientPeer);
                         }
                         else{
                             String reason = clientBlockChain.isValid() ? "BlockChain size lower than local's" : "BlockChain is invalid";
                             objWriter.writeObject(MessageFactory.REJECT(reason));
+                            objWriter.flush();
                             Logger.info("Sent REJECT("+reason+") to " + clientPeer);
                         }
                     }
                     case REQUEST_CONNECTION_END -> {
                         Logger.info("Received REQUEST_CONNECTION_END from " + clientPeer);
                         objWriter.writeObject(MessageFactory.END_CONNECTION());
+                        objWriter.flush();
                         Logger.info("Sent END_CONNECTION to " + clientPeer);
                         Logger.info("Ended connection with " + clientPeer);
                         break;
@@ -85,6 +92,7 @@ public class ClientHandler extends Thread{
                     default -> {
                         Logger.info("Received invalid message type from client: " +  message.getType());
                         objWriter.writeObject(MessageFactory.REJECT("Invalid message type"));
+                        objWriter.flush();
                         Logger.info("Sent REJECT(Invalid message type) to " + clientPeer);
                     }
                 }
