@@ -11,6 +11,7 @@ public class GenesisApp extends BaseApp {
     }
 
     public void startApp(){
+        Logger.info("Starting GenesisApp -> " + getNodeId());
         if(!startServer()){
             Logger.error("Error while starting the server");
             return;

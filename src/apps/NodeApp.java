@@ -14,6 +14,7 @@ public class NodeApp extends BaseApp{
     }
 
     public void startApp(){
+        Logger.info("Starting NodeApp -> " + getNodeId());
         if(!startServer()){
             Logger.error("Error while starting the server");
             return;
