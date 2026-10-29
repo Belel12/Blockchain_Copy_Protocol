@@ -1,7 +1,6 @@
 package apps;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Scanner;
 import java.io.IOException;
 import java.lang.Thread;
@@ -26,7 +25,7 @@ public abstract class BaseApp {
         int serverPort
     ) throws IOException {
         this.nodeId = nodeId;
-        this.serverInstance = new Server(serverPort,new BlockChain(),new ArrayList<Peer>());
+        this.serverInstance = new Server(serverPort);
     }
 
     //must be single print statemant since other threads can print in between

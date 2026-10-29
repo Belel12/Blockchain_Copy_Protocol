@@ -5,6 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.List;
+import java.util.ArrayList;
 import java.lang.Runnable;
 
 import blockchain.BlockChain;
@@ -19,10 +20,10 @@ public class Server implements Runnable {
 
     private boolean running;
     private final ServerSocket serverSocket;
-    public Server(int port, BlockChain blockChain, List<Peer> peersList) throws IOException{
+    public Server(int port) throws IOException{
         this.port = port;
-        this.blockChain = blockChain;
-        this.peersList = peersList;
+        this.blockChain = new BlockChain();
+        this.peersList = new ArrayList<Peer>();
         this.running = true;
         this.serverSocket = new ServerSocket(this.port);
     }
