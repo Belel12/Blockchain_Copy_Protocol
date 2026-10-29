@@ -1,5 +1,6 @@
 package blockchain;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BlockChain {
@@ -8,6 +9,7 @@ public class BlockChain {
     private boolean isValid;
 
     public BlockChain(){
+        setBlockchain(new ArrayList<Block>());
         setValid(true);
     }
 
