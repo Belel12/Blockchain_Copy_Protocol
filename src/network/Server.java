@@ -26,6 +26,10 @@ public class Server implements Runnable {
         this.peersList = new ArrayList<Peer>();
         this.running = true;
         this.serverSocket = new ServerSocket(this.port);
+        peersList.add(new Peer(
+            this.serverSocket.getInetAddress().getHostAddress(),
+            this.port
+        ));
     }
 
     public void run(){
