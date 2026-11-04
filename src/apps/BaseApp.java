@@ -1,124 +1,222 @@
 package apps;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
-import java.io.IOException;
-import java.lang.Thread;
 
 import blockchain.BlockChain;
 import config.Config;
+import network.FlowManager;
 import network.Peer;
 import network.Server;
-
 import utils.Logger;
 
 public abstract class BaseApp {
 
-    private  String     nodeId;
-    private  Server     serverInstance;
+    private final String nodeId;
+    private final Server serverInstance;
+    private final FlowManager flowManager;
 
-    private static String userInputRequest = "Execute command (type h to see options) : ";
-    private static String options = "1 - Inspect this node's BlockChain\n2 - Inspect this node's known Peers\n3 - Abort this node's execution";
+    private static final String userInputRequest =
+        "Execute command (type h to see options) : ";
 
-    public BaseApp (
-        String nodeId,
-        int serverPort
-    ) throws IOException {
+    private static final String options =
+        "1 - Inspect this node's BlockChain\n"
+        + "2 - Inspect this node's known Peers\n"
+        + "3 - Abort this node's execution\n"
+        + "4 - Mine a new block";
+
+    public BaseApp(String nodeId, int serverPort) throws IOException {
+
         this.nodeId = nodeId;
         this.serverInstance = new Server(serverPort);
+
+        // O gerenciador é criado uma vez para cada aplicação.
+        this.flowManager = new FlowManager(
+            nodeId,
+            serverPort,
+            serverInstance.getPeersList(),
+            serverInstance.getBlockChain()
+        );
     }
 
-    //must be single print statemant since other threads can print in between
-    public void printBlockChain(){
-        BlockChain bc = serverInstance.getBlockChain();
-        if(bc.size() < 1)
+    public void printBlockChain() {
+
+        BlockChain bc = getBlockChain();
+
+        if (bc.size() < 1) {
+
             System.out.println("No blocks added yet");
-        else
-            System.out.println("This node's blockchain: \n" + serverInstance.getBlockChain().toString());
+
+        } else {
+
+            System.out.println(
+                "This node's blockchain:\n" + bc
+            );
+        }
     }
 
-    public void printKnownPeers(){
-        System.out.println("This node's known peers: \n" + serverInstance.getPeersList().toString());
+    public void printKnownPeers() {
+
+        System.out.println(
+            "This node's known peers:\n" + getKnownPeers()
+        );
     }
 
-    protected void abortNodeExecution(){
-        try{
+    /*
+     * Minera um bloco e inicia o Fluxo C.
+     */
+    protected void mineNewBlock(Scanner scanner) {
+
+        System.out.print("Enter block data: ");
+
+        String data = scanner.nextLine().trim();
+
+        if (data.isEmpty()) {
+            System.out.println("Block data cannot be empty.");
+            return;
+        }
+
+        try {
+
+            System.out.println("Starting mining...");
+
+            getBlockChain().addBlock(
+                data,
+                Config.miningDifficulty
+            );
+
+            System.out.println(
+                "Block added successfully. Blockchain size: "
+                + getBlockChain().size()
+            );
+
+            // A propagação acontece somente após a mineração.
+            getFlowManager().broadcastBlockchain();
+
+        } catch (Exception e) {
+
+            Logger.error(
+                "Error mining or broadcasting block: "
+                + e.getMessage()
+            );
+        }
+    }
+
+    protected void abortNodeExecution() {
+
+        try {
+
             Logger.userInputLoopActive = false;
-            //interrupts flow manager
+
+            // Fecha a conexão de saída, caso exista.
+            flowManager.closeActiveConnection();
+
             serverInstance.interrupt();
-        } catch(IOException e) {
+
+        } catch (IOException e) {
+
             Logger.error("Error while aborting node execution");
             e.printStackTrace();
         }
     }
 
-    public void startUserInputLoop(){
-        try(Scanner scanner = new Scanner(System.in)){
+    public void startUserInputLoop() {
+
+        try (Scanner scanner = new Scanner(System.in)) {
+
             Logger.userInputLoopActive = true;
+
             System.out.print(getUserInputRequest());
-            while(scanner.hasNextLine()){
+
+            while (scanner.hasNextLine()) {
+
                 String opt = scanner.nextLine().trim();
-                switch (opt){
+
+                switch (opt) {
+
                     case "h" -> {
                         System.out.println(options);
                     }
+
                     case "1" -> {
                         printBlockChain();
                     }
+
                     case "2" -> {
                         printKnownPeers();
                     }
+
                     case "3" -> {
                         abortNodeExecution();
                         return;
                     }
+
+                    case "4" -> {
+                        mineNewBlock(scanner);
+                    }
+
                     default -> {
-                        System.out.println("Unknow option: " + opt);
+                        System.out.println("Unknown option: " + opt);
                     }
                 }
+
                 System.out.print(getUserInputRequest());
             }
         }
     }
 
+    protected boolean startServer() {
 
-    protected boolean startServer(){
         Logger.info("Starting server...");
+
         new Thread(serverInstance).start();
-        try{
-            Thread.sleep(1 * 1000); // time to let the server start in the other thread
-        } catch(InterruptedException e){e.printStackTrace();} //unlikely to happen
+
+        try {
+
+            Thread.sleep(1000);
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+            Logger.error("Interrupted while starting server.");
+            return false;
+        }
 
         return serverInstance.isRunning();
     }
 
-    // must call startServer and validate before
     public abstract void startApp();
 
-    public String getVersionIdString(){
+    public String getVersionIdString() {
         return Config.currentProtocolVersion + "-" + getNodeId();
     }
-	public BlockChain getBlockChain() {
-		return serverInstance.getBlockChain();
-	}
 
-	public List<Peer> getKnownPeers() {
-		return serverInstance.getPeersList();
-	}
+    public BlockChain getBlockChain() {
+        return serverInstance.getBlockChain();
+    }
 
-	public String getNodeId() {
-		return nodeId;
-	}
+    public List<Peer> getKnownPeers() {
+        return serverInstance.getPeersList();
+    }
 
-	public int getServerPort() {
-		return serverInstance.getPort();
-	}
+    public String getNodeId() {
+        return nodeId;
+    }
 
-	public Server getServerInstance(){
-	    return this.serverInstance;
-	}
-	public static String getUserInputRequest() {
-		return userInputRequest;
-	}
+    public int getServerPort() {
+        return serverInstance.getPort();
+    }
 
+    public Server getServerInstance() {
+        return serverInstance;
+    }
+
+    public FlowManager getFlowManager() {
+        return flowManager;
+    }
+
+    public static String getUserInputRequest() {
+        return userInputRequest;
+    }
 }

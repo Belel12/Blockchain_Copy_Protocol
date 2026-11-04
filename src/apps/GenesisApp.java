@@ -6,17 +6,21 @@ import utils.Logger;
 
 public class GenesisApp extends BaseApp {
 
-    public GenesisApp(int serverPort) throws IOException{
-        super("GENESIS",serverPort);
+    public GenesisApp(int serverPort) throws IOException {
+        super("GENESIS", serverPort);
     }
 
-    public void startApp(){
+    @Override
+    public void startApp() {
+
         Logger.info("Starting GenesisApp -> " + getNodeId());
-        if(!startServer()){
+
+        if (!startServer()) {
             Logger.error("Error while starting the server");
             return;
         }
-        //falta colocar a inicializacao dos fluxos
+
+        // O Genesis também pode minerar e transmitir blocos.
         startUserInputLoop();
     }
 }

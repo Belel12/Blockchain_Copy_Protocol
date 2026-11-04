@@ -1,6 +1,6 @@
-
 package network;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import blockchain.Block;
@@ -9,181 +9,342 @@ import config.Config;
 
 public class FlowManager {
 
-    // ID deste nó na rede, enviado durante o HELLO.
     private final String nodeId;
-
-    // Lista compartilhada dos peers conhecidos pelo nó.
+    private final int serverPort;
     private final List<Peer> peersList;
-
-    // Blockchain compartilhada com o Server.
     private final BlockChain blockChain;
 
-    // Conexão ativa com o peer remoto.
     private Client activeClient;
 
-
-    // Construtor: recebe os dados e as estruturas do próprio nó.
     public FlowManager(
             String nodeId,
+            int serverPort,
             List<Peer> peersList,
             BlockChain blockChain
     ) {
+
         this.nodeId = nodeId;
+        this.serverPort = serverPort;
         this.peersList = peersList;
         this.blockChain = blockChain;
     }
 
+    /*
+     * Formato do HELLO:
+     * versão|identificação do nó|porta do servidor
+     */
+    private String createHelloPayload() {
 
-    // Estabelece uma conexão com um peer e envia HELLO.
-    // Retorna true se receber ACK.
+        return Config.currentProtocolVersion
+            + "|" + nodeId
+            + "|" + serverPort;
+    }
+
+    /*
+     * Estabelece conexão com um peer e realiza o handshake.
+     */
     public boolean connectToPeer(Peer peer) {
+
+        closeActiveConnection();
 
         try {
 
-            // Abre uma conexão TCP com o peer.
             activeClient = new Client(
                 peer.getIp(),
                 peer.getPort()
             );
 
-            // Envia a versão do protocolo e o ID deste nó.
             activeClient.send(
-                MessageFactory.HELLO(
-                    Config.currentProtocolVersion + "-" + nodeId
-                )
+                MessageFactory.HELLO(createHelloPayload())
             );
 
-            // Aguarda a resposta do peer.
             NetworkMessage response = activeClient.receive();
 
-            // Verifica se o peer aceitou a conexão.
             if (response.getType() == MessageType.ACK) {
+                System.out.println(
+                    "Conexão estabelecida com " + peer
+                );
                 return true;
             }
 
-            // Fecha a conexão caso não receba ACK.
-            activeClient.close();
-            activeClient = null;
+            System.err.println(
+                "Peer rejeitou conexão: " + peer
+            );
 
+            closeActiveConnection();
             return false;
 
         } catch (Exception e) {
 
             System.err.println(
-                "Erro ao conectar ao peer: " + e.getMessage()
+                "Erro ao conectar ao peer " + peer
+                + ": " + e.getMessage()
             );
 
-            // Tenta fechar a conexão caso tenha sido aberta.
-            try {
-                if (activeClient != null) {
-                    activeClient.close();
-                }
-            } catch (Exception closeError) {
-                System.err.println("Erro ao fechar conexão.");
-            }
-
-            // Limpa a referência do cliente.
-            activeClient = null;
-
+            closeActiveConnection();
             return false;
         }
     }
 
-
-    // Solicita ao peer conectado a lista de peers conhecidos.
+    /*
+     * Fluxo A: solicita a lista de peers conhecidos.
+     */
     public void requestPeers() throws Exception {
 
-        // Envia a solicitação da lista de peers.
+        if (activeClient == null) {
+            throw new IllegalStateException(
+                "No active peer connection."
+            );
+        }
+
         activeClient.send(MessageFactory.GET_PEERS());
 
-        // Aguarda a resposta.
         NetworkMessage response = activeClient.receive();
 
-        // Verifica se recebeu uma lista de peers.
-        if (response.getType() == MessageType.PEERS_LIST) {
+        if (response.getType() != MessageType.PEERS_LIST) {
+            throw new IllegalStateException(
+                "Unexpected response to GET_PEERS: "
+                + response.getType()
+            );
+        }
 
-            // Converte o payload para uma lista de Strings.
-            @SuppressWarnings("unchecked")
-            List<String> serializedPeers =
-                (List<String>) response.getPayload();
+        @SuppressWarnings("unchecked")
+        List<String> serializedPeers =
+            (List<String>) response.getPayload();
 
-            // Converte as Strings recebidas em objetos Peer.
-            List<Peer> receivedPeers =
-                Peer.desserializePeerList(serializedPeers);
+        List<Peer> receivedPeers =
+            Peer.desserializePeerList(serializedPeers);
 
-            // Adiciona somente peers ainda não conhecidos.
+        synchronized (peersList) {
+
             for (Peer peer : receivedPeers) {
+
                 if (!peersList.contains(peer)) {
                     peersList.add(peer);
                 }
             }
+        }
 
-            System.out.println("Peers recebidos: " + peersList);
+        System.out.println(
+            "Peers conhecidos: " + getPeersSnapshot()
+        );
+    }
+
+    /*
+     * Fluxo B: solicita a blockchain de um peer.
+     */
+    public void requestBlockchain() throws Exception {
+
+        if (activeClient == null) {
+            throw new IllegalStateException(
+                "No active peer connection."
+            );
+        }
+
+        activeClient.send(MessageFactory.GET_BLOCKCHAIN());
+
+        NetworkMessage response = activeClient.receive();
+
+        if (response.getType() != MessageType.BLOCKCHAIN_COPY) {
+            throw new IllegalStateException(
+                "Unexpected response to GET_BLOCKCHAIN: "
+                + response.getType()
+            );
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Block> receivedBlocks =
+            (List<Block>) response.getPayload();
+
+        BlockChain receivedBlockchain =
+            new BlockChain(receivedBlocks);
+
+        if (!receivedBlockchain.isValid()) {
+
+            System.out.println(
+                "Blockchain recebida é inválida."
+            );
+
+        } else if (
+                receivedBlockchain.size() > blockChain.size()) {
+
+            blockChain.update(receivedBlockchain);
+
+            System.out.println(
+                "Blockchain atualizada com sucesso."
+            );
+
+        } else if (blockChain.hasSameChain(receivedBlockchain)) {
+
+            System.out.println(
+                "Blockchain local já está atualizada."
+            );
 
         } else {
 
-            System.err.println(
-                "Resposta inesperada ao solicitar peers: "
-                + response.getType()
+            System.out.println(
+                "Blockchain local possui tamanho igual ou superior."
             );
         }
     }
 
+    /*
+     * Fluxo C: transmite a blockchain local a todos os peers.
+     */
+    public void broadcastBlockchain() {
 
-    // Solicita a blockchain do peer conectado.
-    public void requestBlockchain() throws Exception {
+        List<Peer> peers = getPeersSnapshot();
 
-        // Envia a solicitação da blockchain.
-        activeClient.send(MessageFactory.GET_BLOCKCHAIN());
+        if (peers.isEmpty()) {
+            System.out.println(
+                "Nenhum peer disponível para broadcast."
+            );
+            return;
+        }
 
-        // Aguarda a resposta do peer.
-        NetworkMessage response = activeClient.receive();
+        // Cria uma cópia consistente da cadeia antes de transmiti-la.
+        List<Block> blockchainCopy = blockChain.serialize();
 
-        // Verifica se recebeu uma cópia da blockchain.
-        if (response.getType() == MessageType.BLOCKCHAIN_COPY) {
+        System.out.println(
+            "Iniciando broadcast para " + peers.size() + " peer(s)."
+        );
 
-            // Converte o payload recebido para uma lista de blocos.
-            @SuppressWarnings("unchecked")
-            List<Block> receivedBlocks =
-                (List<Block>) response.getPayload();
+        for (Peer peer : peers) {
 
-            // Cria uma blockchain com os blocos recebidos.
-            // O construtor executa a validação da cadeia.
-            BlockChain receivedBlockchain =
-                new BlockChain(receivedBlocks);
+            Client peerClient = null;
 
-            // Verifica se a cadeia recebida é válida
-            // e possui mais blocos que a cadeia local.
-            if (receivedBlockchain.isValid()
-                    && receivedBlockchain.size() > blockChain.size()) {
-
-                // Atualiza a blockchain compartilhada com o Server.
-                blockChain.update(receivedBlockchain);
+            try {
 
                 System.out.println(
-                    "Blockchain atualizada com sucesso."
+                    "Enviando blockchain para " + peer
                 );
 
-            } else if (!receivedBlockchain.isValid()) {
-
-                System.out.println(
-                    "Blockchain recebida é inválida."
+                peerClient = new Client(
+                    peer.getIp(),
+                    peer.getPort()
                 );
 
-            } else {
+                // Primeiro realiza o handshake.
+                peerClient.send(
+                    MessageFactory.HELLO(createHelloPayload())
+                );
 
-                System.out.println(
-                    "Blockchain local já está atualizada ou possui mais blocos."
+                NetworkMessage helloResponse =
+                    peerClient.receive();
+
+                if (helloResponse.getType() != MessageType.ACK) {
+
+                    System.err.println(
+                        "Peer rejeitou HELLO: " + peer
+                    );
+
+                    continue;
+                }
+
+                // Envia a cópia da blockchain.
+                peerClient.send(
+                    MessageFactory.BLOCKCHAIN_COPY(blockchainCopy)
+                );
+
+                NetworkMessage response =
+                    peerClient.receive();
+
+                if (response.getType() == MessageType.ACK) {
+
+                    System.out.println(
+                        "Blockchain aceita por " + peer
+                    );
+
+                } else if (response.getType() == MessageType.REJECT) {
+
+                    System.out.println(
+                        "Blockchain rejeitada por " + peer
+                        + ": " + response.getPayload()
+                    );
+
+                } else {
+
+                    System.err.println(
+                        "Resposta inesperada de " + peer
+                        + ": " + response.getType()
+                    );
+                }
+
+            } catch (Exception e) {
+
+                System.err.println(
+                    "Erro no broadcast para " + peer
+                    + ": " + e.getMessage()
+                );
+
+            } finally {
+
+                if (peerClient != null) {
+                    closeConnection(peerClient);
+                }
+            }
+        }
+
+        System.out.println("Broadcast finalizado.");
+    }
+
+    /*
+     * Retorna uma cópia da lista de peers.
+     */
+    private List<Peer> getPeersSnapshot() {
+
+        synchronized (peersList) {
+            return new ArrayList<>(peersList);
+        }
+    }
+
+    /*
+     * Encerra uma conexão específica.
+     */
+    private void closeConnection(Client client) {
+
+        try {
+
+            client.send(
+                MessageFactory.REQUEST_CONNECTION_END()
+            );
+
+            NetworkMessage response = client.receive();
+
+            if (response.getType() != MessageType.END_CONNECTION) {
+                System.err.println(
+                    "Resposta inesperada ao encerrar conexão."
                 );
             }
 
-        } else {
+        } catch (Exception e) {
 
-            // Informa se o peer enviou uma resposta inesperada.
             System.err.println(
-                "Resposta inesperada ao solicitar blockchain: "
-                + response.getType()
+                "Erro durante encerramento da conexão: "
+                + e.getMessage()
             );
+
+        } finally {
+
+            try {
+                client.close();
+            } catch (Exception e) {
+                System.err.println(
+                    "Erro ao fechar socket: " + e.getMessage()
+                );
+            }
+        }
+    }
+
+    /*
+     * Encerra a conexão ativa usada pelos Fluxos A e B.
+     */
+    public void closeActiveConnection() {
+
+        if (activeClient != null) {
+
+            closeConnection(activeClient);
+            activeClient = null;
         }
     }
 }

@@ -1,130 +1,363 @@
 package network;
 
-import blockchain.*;
+import blockchain.Block;
+import blockchain.BlockChain;
+import config.Config;
 import utils.Logger;
-import java.net.Socket;
+
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.lang.Thread;
-import java.util.List;
-import config.Config;
 
-public class ClientHandler extends Thread{
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ClientHandler extends Thread {
 
     private final Socket client;
     private final BlockChain blockChain;
     private final List<Peer> peersList;
-    public ClientHandler(Socket client, BlockChain nodeBlockChain, List<Peer> peersList){
+
+    private Peer clientPeer;
+
+    public ClientHandler(
+            Socket client,
+            BlockChain nodeBlockChain,
+            List<Peer> peersList
+    ) {
+
         this.client = client;
         this.blockChain = nodeBlockChain;
         this.peersList = peersList;
     }
 
-    private void handleClient(){
-        Peer clientPeer = new Peer(client.getInetAddress().getHostName(), client.getPort());
-        try(
+    private void handleClient() {
+
+        try (
             this.client;
-            ObjectOutputStream objWriter = ObjOutStreamWithFlush(this.client.getOutputStream());
-            ObjectInputStream objReader = new ObjectInputStream(this.client.getInputStream());
-        ){
-            NetworkMessage message;
-            //main loop
-            while(true){
-                message = (NetworkMessage) objReader.readObject();
-                switch (message.getType()){
+            ObjectOutputStream objWriter =
+                ObjOutStreamWithFlush(this.client.getOutputStream());
+            ObjectInputStream objReader =
+                new ObjectInputStream(this.client.getInputStream())
+        ) {
+
+            while (true) {
+
+                NetworkMessage message =
+                    (NetworkMessage) objReader.readObject();
+
+                switch (message.getType()) {
+
                     case HELLO -> {
-                        Logger.info("Received HELLO from " + clientPeer);
-                        if(validateClientNode((String) message.getPayload())){
-                            objWriter.writeObject(MessageFactory.ACK("Node approved"));
+
+                        Logger.info("Received HELLO");
+
+                        Peer identifiedPeer =
+                            validateClientNode(
+                                (String) message.getPayload()
+                            );
+
+                        if (identifiedPeer == null) {
+
+                            objWriter.writeObject(
+                                MessageFactory.REJECT(
+                                    "Invalid protocol, node ID or port."
+                                )
+                            );
+
                             objWriter.flush();
-                            Logger.info("Sent ACK(Node approved) to " + clientPeer);
+
+                            return;
                         }
-                        else{
-                            objWriter.writeObject(MessageFactory.REJECT("Your protocol version is outdated or you provided a null Node id"));
-                            objWriter.flush();
-                            Logger.info("Sent REJECT(Node protocol or id invalid) to " + clientPeer);
+
+                        clientPeer = identifiedPeer;
+
+                        synchronized (peersList) {
+
+                            if (!peersList.contains(clientPeer)) {
+                                peersList.add(clientPeer);
+                            }
                         }
+
+                        objWriter.writeObject(
+                            MessageFactory.ACK("Node approved")
+                        );
+
+                        objWriter.flush();
+
+                        Logger.info(
+                            "Approved peer: " + clientPeer
+                        );
                     }
+
                     case GET_PEERS -> {
-                        Logger.info("Received GET_PEERS from " + clientPeer);
-                        objWriter.writeObject(MessageFactory.PEERS_LIST(Peer.serializePeerList(peersList)));
-                        objWriter.flush();
-                        Logger.info("Sent PEER_LIST to " + clientPeer);
-                        if(!peersList.contains(clientPeer)){
-                            peersList.add(clientPeer);
-                            Logger.info("Added " + clientPeer + " to this node's Peers List");
+
+                        if (clientPeer == null) {
+                            sendReject(
+                                objWriter,
+                                "HELLO must be sent first."
+                            );
+                            return;
                         }
+
+                        Logger.info(
+                            "Received GET_PEERS from " + clientPeer
+                        );
+
+                        List<Peer> availablePeers =
+                            new ArrayList<>();
+
+                        synchronized (peersList) {
+
+                            for (Peer peer : peersList) {
+
+                                // Não devolve o próprio solicitante.
+                                if (!peer.equals(clientPeer)) {
+                                    availablePeers.add(peer);
+                                }
+                            }
+                        }
+
+                        objWriter.writeObject(
+                            MessageFactory.PEERS_LIST(
+                                Peer.serializePeerList(availablePeers)
+                            )
+                        );
+
+                        objWriter.flush();
+
+                        Logger.info(
+                            "Sent PEERS_LIST to " + clientPeer
+                        );
                     }
+
                     case GET_BLOCKCHAIN -> {
-                        Logger.info("Received GET_BLOCKCHAIN from " + clientPeer);
-                        objWriter.writeObject(MessageFactory.BLOCKCHAIN_COPY(blockChain.serialize()));
+
+                        if (clientPeer == null) {
+                            sendReject(
+                                objWriter,
+                                "HELLO must be sent first."
+                            );
+                            return;
+                        }
+
+                        Logger.info(
+                            "Received GET_BLOCKCHAIN from " + clientPeer
+                        );
+
+                        objWriter.writeObject(
+                            MessageFactory.BLOCKCHAIN_COPY(
+                                blockChain.serialize()
+                            )
+                        );
+
                         objWriter.flush();
-                        Logger.info("Sent BLOCKCHAIN_COPY to " + clientPeer);
+
+                        Logger.info(
+                            "Sent BLOCKCHAIN_COPY to " + clientPeer
+                        );
                     }
+
                     case BLOCKCHAIN_COPY -> {
-                        Logger.info("Received BLOCKCHAIN_COPY from " + clientPeer);
-                        @SuppressWarnings("unchecked")
-                        BlockChain clientBlockChain = new BlockChain((List<Block>) message.getPayload());
-                        if(clientBlockChain.isValid() && clientBlockChain.size() > this.blockChain.size()){
-                            this.blockChain.update(clientBlockChain);
-                            objWriter.writeObject(MessageFactory.ACK("Blockchain approved and updated"));
-                            objWriter.flush();
-                            Logger.info("Sent ACK(Blockchain approved) to " + clientPeer);
+
+                        if (clientPeer == null) {
+                            sendReject(
+                                objWriter,
+                                "HELLO must be sent first."
+                            );
+                            return;
                         }
-                        else{
-                            String reason = clientBlockChain.isValid() ? "BlockChain size lower than local's" : "BlockChain is invalid";
-                            objWriter.writeObject(MessageFactory.REJECT(reason));
-                            objWriter.flush();
-                            Logger.info("Sent REJECT("+reason+") to " + clientPeer);
+
+                        Logger.info(
+                            "Received BLOCKCHAIN_COPY from " + clientPeer
+                        );
+
+                        try {
+
+                            @SuppressWarnings("unchecked")
+                            List<Block> receivedBlocks =
+                                (List<Block>) message.getPayload();
+
+                            BlockChain receivedBlockchain =
+                                new BlockChain(receivedBlocks);
+
+                            if (!receivedBlockchain.isValid()) {
+
+                                sendReject(
+                                    objWriter,
+                                    "Blockchain is invalid."
+                                );
+
+                            } else if (
+                                receivedBlockchain.size()
+                                    > blockChain.size()
+                            ) {
+
+                                blockChain.update(receivedBlockchain);
+
+                                objWriter.writeObject(
+                                    MessageFactory.ACK(
+                                        "Blockchain approved and updated."
+                                    )
+                                );
+
+                                objWriter.flush();
+
+                                Logger.info(
+                                    "Blockchain updated from " + clientPeer
+                                );
+
+                            } else if (
+                                blockChain.hasSameChain(receivedBlockchain)
+                            ) {
+
+                                objWriter.writeObject(
+                                    MessageFactory.ACK(
+                                        "Blockchain already up to date."
+                                    )
+                                );
+
+                                objWriter.flush();
+
+                            } else {
+
+                                sendReject(
+                                    objWriter,
+                                    "Blockchain is not longer than local chain."
+                                );
+                            }
+
+                        } catch (ClassCastException | NullPointerException e) {
+
+                            sendReject(
+                                objWriter,
+                                "Invalid blockchain payload."
+                            );
                         }
                     }
+
                     case REQUEST_CONNECTION_END -> {
-                        Logger.info("Received REQUEST_CONNECTION_END from " + clientPeer);
-                        objWriter.writeObject(MessageFactory.END_CONNECTION());
+
+                        Logger.info(
+                            "Received REQUEST_CONNECTION_END from "
+                            + clientPeer
+                        );
+
+                        objWriter.writeObject(
+                            MessageFactory.END_CONNECTION()
+                        );
+
                         objWriter.flush();
-                        Logger.info("Sent END_CONNECTION to " + clientPeer);
-                        Logger.info("Ended connection with " + clientPeer);
-                        break;
+
+                        Logger.info(
+                            "Connection ended with " + clientPeer
+                        );
+
+                        return;
                     }
+
                     default -> {
-                        Logger.info("Received invalid message type from client: " +  message.getType());
-                        objWriter.writeObject(MessageFactory.REJECT("Invalid message type"));
-                        objWriter.flush();
-                        Logger.info("Sent REJECT(Invalid message type) to " + clientPeer);
+
+                        sendReject(
+                            objWriter,
+                            "Invalid message type."
+                        );
                     }
                 }
             }
 
-        } catch(EOFException eof) {
-            Logger.error(clientPeer + " ended connection abruptly while client handler tried to read object. Handling was cancelled normally.");
-        } catch(Exception e) {
-            Logger.error("An unexpected error happenned during client handle in " + clientPeer + " \n" + e);
+        } catch (EOFException e) {
+
+            Logger.info(
+                "Connection closed by peer: " + clientPeer
+            );
+
+        } catch (Exception e) {
+
+            Logger.error(
+                "Error handling client " + clientPeer
+                + ": " + e.getMessage()
+            );
         }
     }
 
-    //validates both protocol of client and his ID (just checks if its not null or empty)
-    private boolean validateClientNode(String clientNodeId){
-        if(clientNodeId == null)
-            return false;
-        String[] values = clientNodeId.split("-");
-        String clientProtocolVersion = values[0];
-        String clientID = values[1];
-        if(!clientProtocolVersion.equals(Config.currentProtocolVersion) || clientID == null || clientID.isEmpty())
-            return false;
-        return true;
+    /*
+     * Interpreta:
+     * versão|nodeId|porta
+     *
+     * Retorna null se os dados forem inválidos.
+     */
+    private Peer validateClientNode(String payload) {
+
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+
+        String[] values = payload.split("\\|", -1);
+
+        if (values.length != 3) {
+            return null;
+        }
+
+        String protocolVersion = values[0];
+        String nodeId = values[1];
+        String portString = values[2];
+
+        if (!Config.currentProtocolVersion.equals(protocolVersion)
+                || nodeId.isBlank()) {
+            return null;
+        }
+
+        try {
+
+            int peerPort = Integer.parseInt(portString);
+
+            if (peerPort < 1 || peerPort > 65535) {
+                return null;
+            }
+
+            String peerIp =
+                client.getInetAddress().getHostAddress();
+
+            return new Peer(peerIp, peerPort);
+
+        } catch (NumberFormatException e) {
+
+            return null;
+        }
+    }
+
+    private void sendReject(
+            ObjectOutputStream objWriter,
+            String reason
+    ) throws IOException {
+
+        objWriter.writeObject(
+            MessageFactory.REJECT(reason)
+        );
+
+        objWriter.flush();
+
+        Logger.info("Sent REJECT: " + reason);
     }
 
     @Override
-    public void run(){
+    public void run() {
         handleClient();
     }
 
-    private ObjectOutputStream ObjOutStreamWithFlush(OutputStream outStream) throws IOException{
-        ObjectOutputStream objout = new ObjectOutputStream(outStream);
+    private ObjectOutputStream ObjOutStreamWithFlush(
+            OutputStream outStream
+    ) throws IOException {
+
+        ObjectOutputStream objout =
+            new ObjectOutputStream(outStream);
+
         objout.flush();
+
         return objout;
     }
 }
