@@ -6,6 +6,7 @@ import java.util.List;
 import blockchain.Block;
 import blockchain.BlockChain;
 import config.Config;
+import utils.Logger;
 
 public class FlowManager {
 
@@ -61,13 +62,13 @@ public class FlowManager {
             NetworkMessage response = activeClient.receive();
 
             if (response.getType() == MessageType.ACK) {
-                System.out.println(
+                Logger.info(
                     "Conexão estabelecida com " + peer
                 );
                 return true;
             }
 
-            System.err.println(
+            Logger.error(
                 "Peer rejeitou conexão: " + peer
             );
 
@@ -76,7 +77,7 @@ public class FlowManager {
 
         } catch (Exception e) {
 
-            System.err.println(
+            Logger.error(
                 "Erro ao conectar ao peer " + peer
                 + ": " + e.getMessage()
             );
@@ -125,7 +126,7 @@ public class FlowManager {
             }
         }
 
-        System.out.println(
+        Logger.info(
             "Peers conhecidos: " + getPeersSnapshot()
         );
     }
@@ -161,7 +162,7 @@ public class FlowManager {
 
         if (!receivedBlockchain.isValid()) {
 
-            System.out.println(
+            Logger.error(
                 "Blockchain recebida é inválida."
             );
 
@@ -170,19 +171,19 @@ public class FlowManager {
 
             blockChain.update(receivedBlockchain);
 
-            System.out.println(
+            Logger.info(
                 "Blockchain atualizada com sucesso."
             );
 
         } else if (blockChain.hasSameChain(receivedBlockchain)) {
 
-            System.out.println(
+            Logger.info(
                 "Blockchain local já está atualizada."
             );
 
         } else {
 
-            System.out.println(
+            Logger.info(
                 "Blockchain local possui tamanho igual ou superior."
             );
         }
@@ -196,7 +197,7 @@ public class FlowManager {
         List<Peer> peers = getPeersSnapshot();
 
         if (peers.isEmpty()) {
-            System.out.println(
+            Logger.info(
                 "Nenhum peer disponível para broadcast."
             );
             return;
@@ -205,7 +206,7 @@ public class FlowManager {
         // Cria uma cópia consistente da cadeia antes de transmiti-la.
         List<Block> blockchainCopy = blockChain.serialize();
 
-        System.out.println(
+        Logger.info(
             "Iniciando broadcast para " + peers.size() + " peer(s)."
         );
 
@@ -215,7 +216,7 @@ public class FlowManager {
 
             try {
 
-                System.out.println(
+                Logger.info(
                     "Enviando blockchain para " + peer
                 );
 
@@ -234,7 +235,7 @@ public class FlowManager {
 
                 if (helloResponse.getType() != MessageType.ACK) {
 
-                    System.err.println(
+                    Logger.error(
                         "Peer rejeitou HELLO: " + peer
                     );
 
@@ -251,20 +252,20 @@ public class FlowManager {
 
                 if (response.getType() == MessageType.ACK) {
 
-                    System.out.println(
+                    Logger.info(
                         "Blockchain aceita por " + peer
                     );
 
                 } else if (response.getType() == MessageType.REJECT) {
 
-                    System.out.println(
+                    Logger.info(
                         "Blockchain rejeitada por " + peer
                         + ": " + response.getPayload()
                     );
 
                 } else {
 
-                    System.err.println(
+                    Logger.error(
                         "Resposta inesperada de " + peer
                         + ": " + response.getType()
                     );
@@ -272,7 +273,7 @@ public class FlowManager {
 
             } catch (Exception e) {
 
-                System.err.println(
+                Logger.error(
                     "Erro no broadcast para " + peer
                     + ": " + e.getMessage()
                 );
@@ -285,7 +286,7 @@ public class FlowManager {
             }
         }
 
-        System.out.println("Broadcast finalizado.");
+        Logger.info("Broadcast finalizado.");
     }
 
     /*
@@ -312,14 +313,14 @@ public class FlowManager {
             NetworkMessage response = client.receive();
 
             if (response.getType() != MessageType.END_CONNECTION) {
-                System.err.println(
+                Logger.error(
                     "Resposta inesperada ao encerrar conexão."
                 );
             }
 
         } catch (Exception e) {
 
-            System.err.println(
+            Logger.error(
                 "Erro durante encerramento da conexão: "
                 + e.getMessage()
             );
@@ -329,7 +330,7 @@ public class FlowManager {
             try {
                 client.close();
             } catch (Exception e) {
-                System.err.println(
+                Logger.error(
                     "Erro ao fechar socket: " + e.getMessage()
                 );
             }
